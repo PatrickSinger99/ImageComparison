@@ -37,7 +37,7 @@ def color_histogram(img_data, bins=8):
         hist_data_norm = [round(val/num_of_pixels, 4) for val in hist_data]  # Normalize
         return_data += hist_data_norm
 
-    return return_data
+    return np.array(return_data)
 
 
 def edge_histogram(img_data, bins=8):
@@ -51,7 +51,7 @@ def edge_histogram(img_data, bins=8):
     # Calculate histogram values and normalize
     hist_data, _ = np.histogram(eo, bins=bins, range=(-np.pi, np.pi))
     total_edges = np.sum(hist_data)
-    hist_data_norm = [round(val/total_edges, 4) for val in hist_data]
+    hist_data_norm = np.array([round(val/total_edges, 4) for val in hist_data])
 
     return hist_data_norm
 
@@ -62,9 +62,9 @@ def get_img_features(img_data, bins=8, resize=False):
     :param img_data: 3d numpy array of image pixel values
     :param bins: number of features per feature type (eg. color green or edge orientation)
     :param resize: resize image data to a set scale (recommended as it saves a lot of feature compute time)
-    :return: 1d array of feature values
+    :return: dictionary of features
     """
-    return_data = []  # ORDER: red, green, blue
+    return_data = {}
 
     # Resize Image if defined
     if resize:
@@ -72,11 +72,11 @@ def get_img_features(img_data, bins=8, resize=False):
 
     # Get color features
     hist_data = color_histogram(img_data, bins=bins)
-    return_data += hist_data
+    return_data["color"] = hist_data
 
     # Get edge normal orientation features
-    edge_data = edge_histogram(img_data)
-    return_data += edge_data
+    edge_data = edge_histogram(img_data, bins=bins)
+    return_data["edge_orientation"] = edge_data
 
     return return_data
 
@@ -88,9 +88,11 @@ def compare_features(features_a, features_b):
     :param features_b: image 2 features
     :return: normalized float representing difference score. Lower is more similar
     """
+
     diff = np.absolute(features_a - features_b)
-    norm_diff = np.sum(diff)/len(features_a)
-    return round(norm_diff, 4)
+    mae = round(np.mean(diff), 4)
+
+    return mae
 
 
 def compare_image_data(img_data_list):
@@ -103,13 +105,23 @@ def compare_image_data(img_data_list):
     results, total_comparisons = [], 0
     start_time = time.time()
 
+    # Iterate every combination of 2 images
     for index_a in range(len(img_data_list)):
         for index_b in range(index_a + 1, len(img_data_list)):
-            diff = compare_features(img_data_list[index_a], img_data_list[index_b])
-            results.append((index_a, index_b, diff))
+
+            # Compare all features of 2 images
+            features_diffs = 0
+            for feature in img_data_list[index_a]:  # TODO Weights and filtering
+                feature_diff = compare_features(img_data_list[index_a][feature], img_data_list[index_b][feature])
+                features_diffs += feature_diff
+
+            total_diff = round(features_diffs/len(img_data_list[index_a]), 4)
+            similarity = 1 - total_diff  # Flip to more understandable similarity percentage
+            results.append((index_a, index_b, similarity))
+
             total_comparisons += 1
 
-    final_time = time.time()-start_time
+    final_time = time.time() - start_time
     print(f"(i) Compared {len(img_data_list)} images in {total_comparisons} comparisons. "
           f"[{round(final_time, 4)}s total | {round((final_time / total_comparisons)*1000, 4)}s per 1k comparisons]")
 
@@ -117,7 +129,7 @@ def compare_image_data(img_data_list):
 
 
 def load_images_from_directory(path, bin_accuracy=6, scaling=False, load_size=250):
-    valid_formats = ("jpg", "jpeg", "png", "webp")
+    valid_formats = ("jpg", "jpeg", "png", "webp", "jfif")
     load_time, feature_extract_time = 0, 0  # Timing vars
 
     # Get valid image paths
@@ -156,13 +168,13 @@ def find_matches(comparison_data, img_paths_by_index, threshold=0.02, sort_by_sc
     start_time = time.time()
 
     for comparison in comparison_data:
-        if comparison[2] <= threshold:
+        if comparison[2] >= threshold:
             all_matches.append((img_paths_by_index[comparison[0]], img_paths_by_index[comparison[1]], comparison[2]))
 
     if sort_by_score:
-        all_matches = sorted(all_matches, key=lambda entry: entry[2])
+        all_matches = sorted(all_matches, key=lambda entry: entry[2], reverse=True)
 
-    print(f"(i) Found {len(all_matches)} {'match' if len(all_matches) == 2 else 'matches'} under threshold {threshold}."
+    print(f"(i) Found {len(all_matches)} {'match' if len(all_matches) == 2 else 'matches'} above threshold {threshold}."
           f" [{round(time.time()-start_time, 4)}s]")
 
     return all_matches
@@ -185,7 +197,7 @@ if __name__ == "__main__":
     root = r"E:\GitHub Repositories\ImageComparison\imgs"
 
     imgs_features = load_images_from_directory(root, scaling=250, bin_accuracy=16)
-    matches = compare_images(imgs_features, threshold=0.01)
+    matches = compare_images(imgs_features, threshold=0.99)
 
     for match in matches:
         f, axarr = plt.subplots(1, 2)

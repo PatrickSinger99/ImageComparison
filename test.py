@@ -1,6 +1,12 @@
+import matplotlib.pyplot as plt
+import os
+import cv2
+import time
+import numpy as np
+from matplotlib import pyplot as plt
+from PIL import Image
 
-for index_a in range(3):
-    for index_b in range(index_a+1, 3):
-        print(index_a, index_b)
-
-print(3*2)
+pil_img = Image.open("E:\GitHub Repositories\ImageComparison\imgs\white_test (6).png")
+print(pil_img)
+img = np.array(pil_img)
+print(img.shape)
