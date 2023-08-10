@@ -1,15 +1,17 @@
+# Inspiration: https://stackoverflow.com/questions/843972/image-comparison-fast-algorithm
 import os
 import cv2
 import time
-from matplotlib import image
 import numpy as np
 from matplotlib import pyplot as plt
+from PIL import Image
 
 
-# Load an image from a directory path
-def load_img(path):
-    # PIL Alternative: img = np.asarray(Image.open(path), dtype=np.uint8)
-    img = image.imread(path)
+def load_img(path, load_size=250):
+    pil_img = Image.open(path)
+    pil_img.draft('RGB', (load_size, load_size))  # Using shrink-on-load to speed up image load times significantly
+    img = np.array(pil_img, dtype=np.uint8)
+
     return img
 
 
@@ -22,7 +24,7 @@ def color_histogram(img_data, bins=8):
     """
     # Verify image shape
     if len(img_data.shape) != 3:
-        raise Exception(f"Image has wrong channel dimensions. Needs to be 3. Image has {len(img_data.shape)}")
+        raise Exception(f"Image has wrong channel dimensions (Needs to be 3, image has {len(img_data.shape)}).")
 
     # Variable inits
     channels = ("red", "green", "blue")
@@ -39,18 +41,19 @@ def color_histogram(img_data, bins=8):
 
 
 def edge_histogram(img_data, bins=8):
-    """
-    img_gray = np.dot(img_data[:, :, :3], [0.299, 0.587, 0.114]) / 255  # Convert to greyscale
+    greyscale_img = cv2.cvtColor(img_data, cv2.COLOR_BGR2GRAY)
 
-    plt.imshow(img_gray, cmap="gray")
-    plt.show()
-    """
+    # Calculate edges and compute orientations
+    gx, gy = np.gradient(greyscale_img)  # compute the gradients along x and y axes
+    eo = np.arctan2(gy, gx)  # compute the edge orientations in radians
 
-    img_canny = cv2.Canny(img_data, 100, 200)
-    """
-    plt.imshow(img_canny, cmap="gray")
-    plt.show()
-    """
+
+    # Calculate histogram values and normalize
+    hist_data, _ = np.histogram(eo, bins=bins, range=(-np.pi, np.pi))
+    total_edges = np.sum(hist_data)
+    hist_data_norm = [round(val/total_edges, 4) for val in hist_data]
+
+    return hist_data_norm
 
 
 def get_img_features(img_data, bins=8, resize=False):
@@ -68,14 +71,12 @@ def get_img_features(img_data, bins=8, resize=False):
         img_data = cv2.resize(img_data, (resize, resize))
 
     # Get color features
-    try:
-        hist_data = color_histogram(img_data, bins=bins)
-        return_data += hist_data
-    except Exception as e:
-        print(f"Could not get color features for image. Error:\n{e}")
+    hist_data = color_histogram(img_data, bins=bins)
+    return_data += hist_data
 
-    # Get feature xx
-    # TODO
+    # Get edge normal orientation features
+    edge_data = edge_histogram(img_data)
+    return_data += edge_data
 
     return return_data
 
@@ -115,7 +116,7 @@ def compare_image_data(img_data_list):
     return results
 
 
-def load_images_from_directory(path, bin_accuracy=6, scaling=False):
+def load_images_from_directory(path, bin_accuracy=6, scaling=False, load_size=250):
     valid_formats = ("jpg", "jpeg", "png", "webp")
     load_time, feature_extract_time = 0, 0  # Timing vars
 
@@ -128,18 +129,21 @@ def load_images_from_directory(path, bin_accuracy=6, scaling=False):
     # Load image data as np array
     return_data = {}
     for img in valid_images:
-        # Load image pixel data
-        load_start = time.time()
-        img_data = load_img(img)
-        load_time += time.time() - load_start
+        try:
+            # Load image pixel data
+            load_start = time.time()
+            img_data = load_img(img, load_size=load_size)
+            load_time += time.time() - load_start
 
-        # Compute features
-        feature_start = time.time()
-        img_features = get_img_features(img_data, bins=bin_accuracy, resize=scaling)
-        feature_extract_time += time.time() - feature_start
+            # Compute features
+            feature_start = time.time()
+            img_features = get_img_features(img_data, bins=bin_accuracy, resize=scaling)
+            feature_extract_time += time.time() - feature_start
 
-        # Add to return data
-        return_data[img] = img_features
+            # Add to return data
+            return_data[img] = img_features
+        except Exception as e:
+            print(f"(!) Skipped {img}. Error: {e}")
 
     print(f"(i) Loaded {len(valid_images)} images from {path}. [Verify: {round(verify_time, 2)}s | "
           f"Load: {round(load_time, 2)}s | Extract: {round(feature_extract_time, 2)}s]")
@@ -158,8 +162,21 @@ def find_matches(comparison_data, img_paths_by_index, threshold=0.02, sort_by_sc
     if sort_by_score:
         all_matches = sorted(all_matches, key=lambda entry: entry[2])
 
-    print(f"(i) Found {len(all_matches)} {'match' if len(all_matches) == 2 else 'matches'}. "
-          f"[{round(time.time()-start_time, 4)}s]")
+    print(f"(i) Found {len(all_matches)} {'match' if len(all_matches) == 2 else 'matches'} under threshold {threshold}."
+          f" [{round(time.time()-start_time, 4)}s]")
+
+    return all_matches
+
+
+def compare_images(img_data_dict, threshold=0.02, sort_by_score=True):
+
+    # Split image paths and features
+    # -> Limit required memory for result list of main comparison as every comparison is logged
+    images_features = np.array(list(img_data_dict.values()))
+    images_paths = list(img_data_dict.keys())
+
+    comparison_data = compare_image_data(images_features)
+    all_matches = find_matches(comparison_data, images_paths, threshold=threshold, sort_by_score=sort_by_score)
 
     return all_matches
 
@@ -167,29 +184,12 @@ def find_matches(comparison_data, img_paths_by_index, threshold=0.02, sort_by_sc
 if __name__ == "__main__":
     root = r"E:\GitHub Repositories\ImageComparison\imgs"
 
-    imgs_features = load_images_from_directory(root, scaling=250)
-
-    np_array = np.array(list(imgs_features.values()))
-    images_paths = list(imgs_features.keys())
-    comparison_data = compare_image_data(np_array)
-    matches = find_matches(comparison_data, images_paths)
+    imgs_features = load_images_from_directory(root, scaling=250, bin_accuracy=16)
+    matches = compare_images(imgs_features, threshold=0.01)
 
     for match in matches:
         f, axarr = plt.subplots(1, 2)
-        axarr[0].imshow(load_img_pil(match[0]))
-        axarr[1].imshow(load_img_pil(match[1]))
+        axarr[0].imshow(load_img(match[0]))
+        axarr[1].imshow(load_img(match[1]))
         f.suptitle(match[2])
         plt.show()
-
-
-    """
-    plt.imshow(test)
-    plt.show()
-
-    hists = histogram(test, bins=8)
-    for hist in hists:
-        print(hists[hist])
-        plt.bar([str(i) for i in range(len(hists[hist]))], hists[hist])
-        plt.title(hist)
-        plt.show()
-    """
