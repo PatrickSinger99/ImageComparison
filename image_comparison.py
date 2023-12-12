@@ -85,7 +85,7 @@ def get_img_features(img_data, bins=8, resize: Union[bool, int] = False):
         edge_data = edge_histogram(img_data, bins=bins)
         return_data["edge_orientation"] = edge_data
     except Exception as e:
-        print("Could not calculate image feature:", e)
+        print("(!) Could not calculate features for image:", e)
 
     return return_data
 
@@ -112,7 +112,11 @@ def compare_two_images(image_a_data, image_b_data):
         features_diffs += feature_diff
 
     # Calc total avg difference for all features of 2 images
-    total_diff = round(features_diffs / len(image_a_data), 4)
+    try:
+        total_diff = round(features_diffs / len(image_a_data), 4)
+    except ZeroDivisionError:
+        total_diff = 0
+
     similarity = 1 - total_diff  # Flip to more understandable similarity percentage
 
     return similarity

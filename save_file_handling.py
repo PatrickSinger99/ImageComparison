@@ -1,6 +1,7 @@
 import json
 import os
 import jsbeautifier
+import time
 
 
 class SaveFileHandler:
@@ -12,31 +13,41 @@ class SaveFileHandler:
         self.data_dict = {}  # stores json data as dict
 
         # Check if savefile exists. If yes load its data
-        if os.path.exists(self.save_file_path):
-            try:
-                self.data_dict = self.read_from_save_file()
-            except Exception as e:
-                print("(!) Failed to load save file:", e)
+
+        try:
+            self.data_dict = self.read_from_save_file()
+        except Exception as e:
+            print("(!) Failed to load save file:", e)
 
         # Update savefile with current root directory content
         self.update_save_file()
 
     def read_from_save_file(self):
+        timer_start = time.time()
+        print("(i) Reading save file...", end="")
+
         with open(self.save_file_path, 'r') as json_file:
             data = json.load(json_file)
 
-        print("Loaded data from savefile.")
+        print(f" done ({round(time.time() - timer_start, 2)}s)")
         return data
 
     def write_to_save_file(self):
+        timer_start = time.time()
+        print("(i) Writing to save file...", end="")
+
         with open(self.save_file_path, 'w') as json_file:
             options = jsbeautifier.default_options()
             options.indent_size = 4
             json_file.write(jsbeautifier.beautify(json.dumps(self.data_dict), options))
 
-        print("Updated savefile.")
+        print(f" done ({round(time.time()-timer_start, 2)}s)")
 
     def update_save_file(self):
+        timer_start = time.time()
+        deletions, additions = 0, 0
+        print("(i) Updating saved image paths...", end="")
+
         # Get current files of root folder
         all_file_paths = self.get_root_folder_files()
 
@@ -44,18 +55,23 @@ class SaveFileHandler:
         for file_path in all_file_paths:
             if file_path not in self.data_dict:
                 self.data_dict[file_path] = {}
+                additions += 1
 
         # Remove deleted files from dict
         to_be_deteted = []
         for file_path in self.data_dict:
             if file_path not in all_file_paths:
                 to_be_deteted.append(file_path)
+                deletions += 1
 
         for file_path in to_be_deteted:
             del self.data_dict[file_path]
 
+        print(f" done (Removed: {deletions}| Added: {additions}) ({round(time.time()-timer_start, 2)}s)")
+
         # Update savefile with new dict data
-        self.write_to_save_file()
+        if deletions != 0 or additions != 0:
+            self.write_to_save_file()
 
     def edit_image_features(self, file_path, new_features_dict):
         if file_path in self.data_dict:
