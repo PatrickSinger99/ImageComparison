@@ -21,13 +21,16 @@ class ImageCompare:
 
         for file_path, features in all_images_features.items():
             if features == {}:
-                new_features = get_img_features(load_img(file_path), bins=self.bins, resize=self.resize)
+                try:
+                    new_features = get_img_features(load_img(file_path), bins=self.bins, resize=self.resize)
 
-                for feature in new_features:
-                    new_features[feature] = new_features[feature].tolist()
+                    for feature in new_features:
+                        new_features[feature] = new_features[feature].tolist()
 
-                self.save_file_handler.edit_image_features(file_path, new_features)
-                updates += 1
+                    self.save_file_handler.edit_image_features(file_path, new_features)
+                    updates += 1
+                except Exception as e:
+                    print(e)
 
         if updates != 0:
             self.save_file_handler.write_to_save_file()

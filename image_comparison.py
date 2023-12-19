@@ -85,7 +85,8 @@ def get_img_features(img_data, bins=8, resize: Union[bool, int] = False):
         edge_data = edge_histogram(img_data, bins=bins)
         return_data["edge_orientation"] = edge_data
     except Exception as e:
-        print("(!) Could not calculate features for image:", e)
+        # print("(!) Could not calculate features for image:", e)
+        raise Exception("Could not calculate features for image:", e)
 
     return return_data
 

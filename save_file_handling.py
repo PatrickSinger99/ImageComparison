@@ -29,7 +29,7 @@ class SaveFileHandler:
         with open(self.save_file_path, 'r') as json_file:
             data = json.load(json_file)
 
-        print(f" done ({round(time.time() - timer_start, 2)}s)")
+        print(f"DONE ({round(time.time() - timer_start, 2)}s)")
         return data
 
     def write_to_save_file(self):
@@ -41,7 +41,7 @@ class SaveFileHandler:
             options.indent_size = 4
             json_file.write(jsbeautifier.beautify(json.dumps(self.data_dict), options))
 
-        print(f" done ({round(time.time()-timer_start, 2)}s)")
+        print(f"DONE ({round(time.time()-timer_start, 2)}s)")
 
     def update_save_file(self):
         timer_start = time.time()
@@ -67,7 +67,7 @@ class SaveFileHandler:
         for file_path in to_be_deteted:
             del self.data_dict[file_path]
 
-        print(f" done (Removed: {deletions}| Added: {additions}) ({round(time.time()-timer_start, 2)}s)")
+        print(f"DONE (Removed: {deletions}| Added: {additions}) ({round(time.time()-timer_start, 2)}s)")
 
         # Update savefile with new dict data
         if deletions != 0 or additions != 0:
