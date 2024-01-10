@@ -144,7 +144,6 @@ class ImageCompare:
 
                 os.remove(temp_file)
 
-            time.sleep(1)
 
 
 
