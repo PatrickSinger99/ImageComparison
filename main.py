@@ -131,11 +131,30 @@ class ImageCompare:
 
         return results
 
+    def scan_for_browser_extention_comparison_requests(self):
+        print("(i) Starting listenting for browser extention comparison requests")
+        temp_file = r"C:\Users\sip4abt\Downloads\image_comparison_obj.jpg"
+
+
+        while True:
+            if os.path.exists(temp_file):
+
+                result = img_comp.compare_new_image(temp_file, threshold=.99)
+                print(result)
+
+                os.remove(temp_file)
+
+            time.sleep(1)
+
+
+
+
 
 if __name__ == '__main__':
     img_comp = ImageCompare(root_path="./data/raw-img/cat")
     img = r"C:\Users\sip4abt\Documents\GitHub\ImageComparison\data\raw-img\cat\1.jpeg"
 
+    """
     # TEST COMPARE TO NEW IMAGE
     res = img_comp.compare_new_image(img, threshold=.99)
 
@@ -148,3 +167,6 @@ if __name__ == '__main__':
         axarr[1].imshow(load_img(match[1]))
         f.suptitle(match[2])
         plt.show()
+    """
+
+    img_comp.scan_for_browser_extention_comparison_requests()
