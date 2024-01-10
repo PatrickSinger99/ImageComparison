@@ -10,10 +10,9 @@ class SaveFileHandler:
     def __init__(self, root_path, save_file_path="savefile.json"):
         self.root_path = root_path
         self.save_file_path = save_file_path
-        self.data_dict = {}  # stores json data as dict
+        self.data_dict = {}  # stores the json data of the save file as dict
 
         # Check if savefile exists. If yes load its data
-
         try:
             self.data_dict = self.read_from_save_file()
         except Exception as e:
