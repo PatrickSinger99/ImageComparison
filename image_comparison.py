@@ -3,9 +3,10 @@ import os
 import cv2
 import time
 import numpy as np
-from matplotlib import pyplot as plt
 from PIL import Image
 from typing import Union
+import base64
+import io
 
 
 def load_img(path, load_size=250):
@@ -15,6 +16,22 @@ def load_img(path, load_size=250):
 
     return img
 
+
+def load_img_from_b64(b64_string, load_size=250):
+    img_data = base64.b64decode(b64_string)
+    img = Image.open(io.BytesIO(img_data))
+    # img.thumbnail((load_size, load_size), Image.ANTIALIAS)  # Using thumbnail to resize while maintaining aspect ratio
+    img = np.array(img, dtype=np.uint8)
+
+    return img
+
+
+def bytes_to_image(byte_data):
+    print(byte_data)
+    image_stream = io.BytesIO(byte_data)
+    image = Image.open(image_stream)
+    img = np.array(image, dtype=np.uint8)
+    return img
 
 def color_histogram(img_data, bins=8):
     """

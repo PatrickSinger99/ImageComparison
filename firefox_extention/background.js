@@ -7,36 +7,48 @@ browser.menus.create({
 
 // Add a listener for when the menu item is clicked
 browser.menus.onClicked.addListener((info, tab) => {
-
   // Check if the clicked menu item is "my-menu-item"
   if (info.menuItemId === "my-menu-item") {
-    // Get the image URL from the info object
-    let imageUrl = info.srcUrl;
+    fetch('http://localhost:5000/compare', { // replace with your Flask server URL and endpoint
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({src: info.srcUrl})
+        }).then(response => response.json()).then(data => {
+          console.log(data); // log the server response
+        }).catch(error => {
+          console.log(error);
+        });
 
-    // Download image
-    browser.downloads.download({
-        url: imageUrl,
-        filename: "image_comparison_obj.jpg"
+
+    /*
+    // Fetch the image as a Blob
+    fetch(info.srcUrl).then(response => response.blob()).then(blob => {
+      // Create a FileReader
+      let reader = new FileReader();
+      // Add an event listener for when the reading is complete
+      reader.addEventListener("load", () => {
+        // The result attribute contains the base64 string
+        let base64Image = reader.result;
+
+        // Send the base64 string to the Flask server
+        fetch('http://localhost:5000/compare', { // replace with your Flask server URL and endpoint
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ image: base64Image, src: info.srcUrl })
+        }).then(response => response.json()).then(data => {
+          console.log(data); // log the server response
+        }).catch(error => {
+
+        });
+
       });
+      // Read the blob as a data URL (base64 string)
+      reader.readAsDataURL(blob);
+    });
+    */
   }
 });
-
-// Not used currently
-function getBase64Image(img) {
-    // Create an empty canvas element
-    var canvas = document.createElement("canvas");
-    canvas.width = img.width;
-    canvas.height = img.height;
-
-    // Copy the image contents to the canvas
-    var ctx = canvas.getContext("2d");
-    ctx.drawImage(img, 0, 0);
-
-    // Get the data-URL formatted image
-    // Firefox supports PNG and JPEG. You could check img.src to
-    // guess the original format, but be aware the using "image/jpg"
-    // will re-encode the image.
-    var dataURL = canvas.toDataURL("image/png");
-
-    return dataURL.replace(/^data:image\/(png|jpg);base64,/, "");
-}
