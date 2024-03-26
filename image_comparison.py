@@ -33,6 +33,7 @@ def bytes_to_image(byte_data):
     img = np.array(image, dtype=np.uint8)
     return img
 
+
 def color_histogram(img_data, bins=8):
     """
     Calculate image features based on color distribution.

@@ -42,9 +42,9 @@ class SaveFileHandler:
 
         print(f"DONE ({round(time.time()-timer_start, 2)}s)")
 
-    def update_save_file(self):
+    def update_save_file(self, write_to_file=True):
         timer_start = time.time()
-        deletions, additions = 0, 0
+        deletions, additions = [], []
         print("(i) Updating saved image paths...", end="")
 
         # Get current files of root folder
@@ -54,23 +54,25 @@ class SaveFileHandler:
         for file_path in all_file_paths:
             if file_path not in self.data_dict:
                 self.data_dict[file_path] = {}
-                additions += 1
+                additions.append(file_path)
 
         # Remove deleted files from dict
         to_be_deteted = []
         for file_path in self.data_dict:
             if file_path not in all_file_paths:
                 to_be_deteted.append(file_path)
-                deletions += 1
+                deletions.append(file_path)
 
         for file_path in to_be_deteted:
             del self.data_dict[file_path]
 
-        print(f"DONE (Removed: {deletions}| Added: {additions}) ({round(time.time()-timer_start, 2)}s)")
+        print(f"DONE (Removed: {len(deletions)}| Added: {len(additions)}) ({round(time.time()-timer_start, 2)}s)")
 
         # Update savefile with new dict data
-        if deletions != 0 or additions != 0:
+        if (len(deletions) != 0 or len(additions) != 0) and write_to_file:
             self.write_to_save_file()
+
+        return {"additions": additions, "deletions": deletions}
 
     def edit_image_features(self, file_path, new_features_dict):
         if file_path in self.data_dict:

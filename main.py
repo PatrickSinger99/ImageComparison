@@ -2,6 +2,7 @@ import os
 from save_file_handling import SaveFileHandler
 from image_comparison import *
 import time
+from matplotlib import pyplot as plt
 
 
 class ImageCompare:
@@ -19,9 +20,10 @@ class ImageCompare:
         # Update image features
         self.update_features()
 
-    def update_features(self):
+    def update_features(self, write_to_file=True):
         """
         Add features to all save file entries that do not have features yet
+        :param write_to_file: Update savefile if changes occur (can be time intensive)
         """
         updates = 0
         skipped = 0  # Skipped images due to errors
@@ -48,7 +50,7 @@ class ImageCompare:
             print(f"(!) Skipped computing features for {skipped} image{'s' if skipped != 1 else ''} "
                   f"(Invalid number of channels).")
         # Only update the save file, if changes were made (Updating large save files takes several seconds)
-        if updates != 0:
+        if updates != 0 and write_to_file:
             self.save_file_handler.write_to_save_file()
 
     def compare_new_image(self, new_image_path, threshold=0.99):
@@ -71,11 +73,12 @@ class ImageCompare:
         # Compare the new image to every other image and save the results in an array
         results = []
         for img_path, img_features in all_imgs_features.items():
-            similarity = compare_two_images(img_features, new_img_features)
+            if new_image_path != img_path:
+                similarity = compare_two_images(img_features, new_img_features)
 
-            # Only save comparison result if above the defined threshold
-            if similarity >= threshold:
-                results.append((img_path, similarity))
+                # Only save comparison result if above the defined threshold
+                if similarity >= threshold:
+                    results.append((img_path, similarity))
 
         # Sort results
         results = sorted(results, key=lambda x: x[1], reverse=True)
@@ -101,7 +104,7 @@ class ImageCompare:
         # Get all features from existing images in the save file
         all_imgs_features = self.save_file_handler.get_all_images_features()
 
-        # All images with each other and save the results in an array
+        # Compare all images with each other and save the results in an array
         results = []
         for img_a_index, (img_a_path, img_a_features) in enumerate(all_imgs_features.items()):
             for img_b_path, img_b_features in list(all_imgs_features.items())[img_a_index + 1:]:
@@ -131,29 +134,11 @@ class ImageCompare:
 
         return results
 
-    def scan_for_browser_extention_comparison_requests(self):
-        print("(i) Starting listenting for browser extention comparison requests")
-        temp_file = r"C:\Users\sip4abt\Downloads\image_comparison_obj.jpg"
-
-
-        while True:
-            if os.path.exists(temp_file):
-
-                result = img_comp.compare_new_image(temp_file, threshold=.99)
-                print(result)
-
-                os.remove(temp_file)
-
-
-
-
-
 
 if __name__ == '__main__':
     img_comp = ImageCompare(root_path="./data/raw-img/cat")
-    img = r"C:\Users\sip4abt\Documents\GitHub\ImageComparison\data\raw-img\cat\1.jpeg"
+    img = r".\data\raw-img\cat\1.jpeg"
 
-    """
     # TEST COMPARE TO NEW IMAGE
     res = img_comp.compare_new_image(img, threshold=.99)
 
@@ -166,6 +151,3 @@ if __name__ == '__main__':
         axarr[1].imshow(load_img(match[1]))
         f.suptitle(match[2])
         plt.show()
-    """
-
-    img_comp.scan_for_browser_extention_comparison_requests()
