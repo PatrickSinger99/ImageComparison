@@ -91,10 +91,11 @@ class ImageCompare:
 
         return results
 
-    def compare_all_images(self, threshold=0.99):
+    def compare_all_images(self, threshold=0.99, include_compared=False):
         """
         Compare all images in the save file with each other
         :param threshold: threshold for minimum similarity score for the comparison to be saved
+        :param include_compared: Also include images that gave already been compared with every other image
         :return: Array of tuples with the results of the comparison: [(image_a_path, image_b_path, similarity), ...]
         """
 
@@ -102,7 +103,7 @@ class ImageCompare:
         num_comparisons = 0
 
         # Get all features from existing images in the save file
-        all_imgs_features = self.save_file_handler.get_all_images_features()
+        all_imgs_features = self.save_file_handler.get_all_images_features(include_compared=include_compared)
 
         # Compare all images with each other and save the results in an array
         results = []
@@ -126,28 +127,33 @@ class ImageCompare:
 
         final_time = time.time() - timer_start
         num_of_imgs = len(all_imgs_features)
-        print(f"(i) Comparison of {num_of_imgs} image{'s' if num_of_imgs != 1 else ''} finished. "
-              f"{num_comparisons} total comparison{'s' if num_comparisons != 1 else ''}. "
-              f"Found {len(results)} match{'es' if len(results) != 1 else ''} above threshold {threshold} "
-              f"({round(final_time, 2)}s total | "
-              f"{round((final_time / num_comparisons)*10000, 2)}s per 10k comparisons)")
+        if num_of_imgs != 0:
+            print(f"(i) Comparison of {num_of_imgs} image{'s' if num_of_imgs != 1 else ''} finished. "
+                  f"{num_comparisons} total comparison{'s' if num_comparisons != 1 else ''}. "
+                  f"Found {len(results)} match{'es' if len(results) != 1 else ''} above threshold {threshold} "
+                  f"({round(final_time, 2)}s total | "
+                  f"{round((final_time / num_comparisons)*10000, 2)}s per 10k comparisons)")
+
+        _ = self.save_file_handler.mark_all_as_compared()
 
         return results
 
 
 if __name__ == '__main__':
     img_comp = ImageCompare(root_path="./data/raw-img/cat")
-    img = r".\data\raw-img\cat\1.jpeg"
+    img = r"./data/raw-img/cat/1.jpeg"
 
     # TEST COMPARE TO NEW IMAGE
-    res = img_comp.compare_new_image(img, threshold=.99)
+    res = img_comp.compare_new_image(img, threshold=.97)
 
     # TEST COMPARE ALL IMAGES
     res_all = img_comp.compare_all_images(threshold=.99)
 
+    """
     for match in res_all:
         f, axarr = plt.subplots(1, 2)
         axarr[0].imshow(load_img(match[0]))
         axarr[1].imshow(load_img(match[1]))
         f.suptitle(match[2])
         plt.show()
+    """

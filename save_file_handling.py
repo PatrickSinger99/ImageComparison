@@ -53,7 +53,8 @@ class SaveFileHandler:
         # Add new files to dict
         for file_path in all_file_paths:
             if file_path not in self.data_dict:
-                self.data_dict[file_path] = {}
+                self.data_dict[file_path] = {"features": {},
+                                             "info": {"compared": False, "last_modified": os.path.getmtime(file_path)}}
                 additions.append(file_path)
 
         # Remove deleted files from dict
@@ -76,12 +77,18 @@ class SaveFileHandler:
 
     def edit_image_features(self, file_path, new_features_dict):
         if file_path in self.data_dict:
-            self.data_dict[file_path] = new_features_dict
+            self.data_dict[file_path]["features"] = new_features_dict
         else:
             print(f"(!) Can not update features for {file_path}. File path not in save file.")
 
-    def get_all_images_features(self):
-        return self.data_dict
+    def get_all_images_features(self, include_compared=True):
+        if include_compared:
+            only_features_dict = {key: value['features'] for key, value in self.data_dict.items()}
+        else:
+            only_features_dict = {key: value['features'] for key, value in self.data_dict.items() if
+                                  not value["info"]["compared"]}
+
+        return only_features_dict
 
     def get_root_folder_files(self):
         valid_files = []
@@ -96,6 +103,21 @@ class SaveFileHandler:
                         break
 
         return valid_files
+
+    def mark_all_as_compared(self, write_to_file=True):
+        new_completions = 0
+
+        for file_path in self.data_dict.keys():
+            if not self.data_dict[file_path]["info"]["compared"]:
+
+                self.data_dict[file_path]["info"]["compared"] = True
+                new_completions += 1
+
+        # Update savefile with new dict data
+        if new_completions != 0 and write_to_file:
+            self.write_to_save_file()
+
+        return new_completions
 
 
 if __name__ == '__main__':
