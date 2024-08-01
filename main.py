@@ -28,7 +28,7 @@ class ImageCompare:
         updates = 0
         skipped = 0  # Skipped images due to errors
 
-        all_images_features = self.save_file_handler.get_all_images_features()
+        all_images_features = self.save_file_handler.get_all_images_features(split_compared=False)
 
         # Iterate through every save file entry
         for file_path, features in all_images_features.items():
@@ -68,7 +68,7 @@ class ImageCompare:
         new_img_features = get_img_features(new_img_data, bins=self.bins, resize=self.resize)
 
         # Get all features from existing images in the save file
-        all_imgs_features = self.save_file_handler.get_all_images_features()
+        all_imgs_features = self.save_file_handler.get_all_images_features(split_compared=False)
 
         # Compare the new image to every other image and save the results in an array
         results = []
@@ -91,24 +91,29 @@ class ImageCompare:
 
         return results
 
-    def compare_all_images(self, threshold=0.99, include_compared=False):
+    def compare_all_images(self, threshold=0.99, skip_compared=True):
         """
         Compare all images in the save file with each other
         :param threshold: threshold for minimum similarity score for the comparison to be saved
-        :param include_compared: Also include images that gave already been compared with every other image
+        :param skip_compared: skip images that have already been compared with every other image
         :return: Array of tuples with the results of the comparison: [(image_a_path, image_b_path, similarity), ...]
         """
 
         timer_start = time.time()
         num_comparisons = 0
+        results = []
 
         # Get all features from existing images in the save file
-        all_imgs_features = self.save_file_handler.get_all_images_features(include_compared=include_compared)
+        if skip_compared:
+            # If previous compared images are skipped, get 2 lists for already compared and uncompared images
+            compared_imgs_features, uncompared_imgs_features = self.save_file_handler.get_all_images_features()
+        else:
+            uncompared_imgs_features = self.save_file_handler.get_all_images_features(split_compared=False)
+            compared_imgs_features = []  # Define so the IDE doesnt act up + for printing results
 
-        # Compare all images with each other and save the results in an array
-        results = []
-        for img_a_index, (img_a_path, img_a_features) in enumerate(all_imgs_features.items()):
-            for img_b_path, img_b_features in list(all_imgs_features.items())[img_a_index + 1:]:
+        # Compare all uncompared images with each other and save the results in an array
+        for img_a_index, (img_a_path, img_a_features) in enumerate(uncompared_imgs_features.items()):
+            for img_b_path, img_b_features in list(uncompared_imgs_features.items())[img_a_index + 1:]:
 
                 try:
                     similarity = compare_two_images(img_a_features, img_b_features)
@@ -122,17 +127,37 @@ class ImageCompare:
 
                 num_comparisons += 1
 
+        # Compare all uncompared images to all compared images. Only when compared images are skipped
+        if skip_compared:
+            for img_a_path, img_a_features in uncompared_imgs_features.items():
+                for img_b_path, img_b_features in compared_imgs_features.items():
+
+                    try:
+                        similarity = compare_two_images(img_a_features, img_b_features)
+
+                        # Only save comparison result if above the defined threshold
+                        if similarity >= threshold:
+                            results.append((img_a_path, img_b_path, similarity))
+
+                    except Exception as e:
+                        pass
+
+                    num_comparisons += 1
+
         # Sort results
         results = sorted(results, key=lambda x: x[1], reverse=True)
 
         final_time = time.time() - timer_start
-        num_of_imgs = len(all_imgs_features)
-        if num_of_imgs != 0:
+        num_of_imgs = len(compared_imgs_features) + len(uncompared_imgs_features)
+        if num_comparisons != 0:
             print(f"(i) Comparison of {num_of_imgs} image{'s' if num_of_imgs != 1 else ''} finished. "
                   f"{num_comparisons} total comparison{'s' if num_comparisons != 1 else ''}. "
                   f"Found {len(results)} match{'es' if len(results) != 1 else ''} above threshold {threshold} "
                   f"({round(final_time, 2)}s total | "
                   f"{round((final_time / num_comparisons)*10000, 2)}s per 10k comparisons)")
+        else:
+            print(f"(i) Comparison finished. No images could be compared (Reason could be that all images have been "
+                  f"compared with each other already).")
 
         _ = self.save_file_handler.mark_all_as_compared()
 
@@ -140,8 +165,8 @@ class ImageCompare:
 
 
 if __name__ == '__main__':
-    img_comp = ImageCompare(root_path="./data/raw-img/cat")
-    img = r"./data/raw-img/cat/1.jpeg"
+    img_comp = ImageCompare(root_path="./imgs")
+    img = r"./imgs/test (49).jpg"
 
     # TEST COMPARE TO NEW IMAGE
     res = img_comp.compare_new_image(img, threshold=.97)
