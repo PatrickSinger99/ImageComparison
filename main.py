@@ -6,8 +6,8 @@ from matplotlib import pyplot as plt
 
 
 class ImageCompare:
-    def __init__(self, root_path, savefile_path="savefile.json", bins=6, resize=250):
-        self.save_file_handler = SaveFileHandler(root_path, save_file_path=savefile_path)
+    def __init__(self, savefile_path="savefile.json", bins=6, resize=250):
+        self.save_file_handler = SaveFileHandler(save_file_path=savefile_path)
 
         """PARAMETERS"""
 
@@ -165,7 +165,7 @@ class ImageCompare:
 
 
 if __name__ == '__main__':
-    img_comp = ImageCompare(root_path="./imgs")
+    img_comp = ImageCompare()
     img = r"./imgs/test (49).jpg"
 
     # TEST COMPARE TO NEW IMAGE
