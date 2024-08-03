@@ -120,7 +120,7 @@ class SaveFileHandler:
         new_completions = 0
 
         for file_path in self.data_dict.keys():
-            if not self.data_dict[file_path]["info"]["compared"]:
+            if self.data_dict[file_path]["info"]["compared"] == unmark_all:
 
                 self.data_dict[file_path]["info"]["compared"] = True if not unmark_all else False
                 new_completions += 1

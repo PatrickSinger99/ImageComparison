@@ -172,6 +172,7 @@ if __name__ == '__main__':
     res = img_comp.compare_new_image(img, threshold=.97)
 
     # TEST COMPARE ALL IMAGES
+    img_comp.save_file_handler.mark_all_as_compared(unmark_all=True)
     res_all = img_comp.compare_all_images(threshold=.99)
 
     """
