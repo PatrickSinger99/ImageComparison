@@ -6,7 +6,8 @@ import time
 
 class SaveFileHandler:
     valid_file_types = ("jpg", "jpeg", "png", "webp", "jfif")
-    base_save_file_structure = {"meta": {"root": "", "created": 0, "matches": []}, "data": {}}
+    base_save_file_structure = {"meta": {"root": "", "created": 0, "lifetime_matches": 0, "lifetime_comparisons": 0},
+                                "data": {}}
 
     def __init__(self, save_file_path="savefile.json"):
         self.save_file_path = save_file_path
@@ -145,3 +146,16 @@ class SaveFileHandler:
 
     def get_number_of_files(self):
         return len(self.data_dict["data"])
+
+    def get_lifetime_stats(self):
+        return {"matches": self.data_dict["meta"]["lifetime_matches"],
+                "comparisons": self.data_dict["meta"]["lifetime_comparisons"]}
+
+    def add_to_lifetime_stats(self, matches=0, comparisons=0, write_to_file=True):
+
+        self.data_dict["meta"]["lifetime_matches"] += matches
+        self.data_dict["meta"]["lifetime_comparisons"] += comparisons
+
+        # Update savefile with new dict data
+        if write_to_file:
+            self.write_to_save_file()

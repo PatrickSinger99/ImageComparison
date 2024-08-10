@@ -3,6 +3,8 @@ from main import ImageCompare
 from tkinter.font import Font
 import threading
 import os
+from PIL import Image, ImageTk
+
 
 class App(tk.Tk):
 
@@ -13,7 +15,10 @@ class App(tk.Tk):
         "analysis_button_base": "medium sea green",
         "analysis_button_hover": "light sea green",
         "info_type": "sea green",
-        "comparison_score": "sea green"
+        "comparison_score": "sea green",
+        "match_list_base_bg": "light grey",
+        "match_list_hover_bg": "white",
+        "match_list_active_bg": "sea green"
     }
 
     def __init__(self, save_file_path="savefile.json"):
@@ -22,7 +27,12 @@ class App(tk.Tk):
         """INITIALIZE COMPARE"""
         self.save_file_path = save_file_path
         self.comparer = ImageCompare(savefile_path=save_file_path)
+
+        """SESSION VARIABLES"""
         self.running_analysis = False
+        self.matches = {}
+        self.session_next_match_id = 0
+        self.selected_match_id = None
 
         """METADATA"""
         self.title("Image Comparison")
@@ -131,8 +141,12 @@ class App(tk.Tk):
     def populate_matches(self, results):
 
         for match in results:
-            match_frame = MatchFrame(master=self.matches_frame.scrollable_frame, match=match)
+            match_frame = MatchFrame(master=self.matches_frame.scrollable_frame, match=match,
+                                     match_id=self.session_next_match_id)
             match_frame.pack(fill="x")
+
+            self.matches[self.session_next_match_id] = match_frame
+            self.session_next_match_id += 1
 
     def _on_analyse_button_enter(self, e):
         self.analyze_button.configure(bg=App.colors["analysis_button_hover"])
@@ -140,29 +154,115 @@ class App(tk.Tk):
     def _on_analyse_button_leave(self, e):
         self.analyze_button.configure(bg=App.colors["analysis_button_base"])
 
+    def on_select_match(self, match_id):
+
+        if self.selected_match_id is not None and self.selected_match_id != match_id:
+            self.matches[self.selected_match_id].on_deselect()
+
+        self.selected_match_id = match_id
+
+        self.display_match_detail(images=(self.matches[self.selected_match_id].img_1_path,
+                                          self.matches[self.selected_match_id].img_2_path),
+                                  score=self.matches[self.selected_match_id].score)
+
+    def display_match_detail(self, images, score):
+
+        for child in self.detail_frame.winfo_children():
+            child.destroy()
+
+        score_label = tk.Label(self.detail_frame, text=score)
+        score_label.pack()
+
+        for image in images:
+            new_img_frame = ImageDetailFrame(master=self.detail_frame, img_path=image)
+            new_img_frame.pack(side="left")
+
+
+
 
 class MatchFrame(tk.Frame):
-    def __init__(self, match, *args, **kwargs):
+    def __init__(self, match, match_id, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.configure(relief="groove", bd=1, cursor="hand2")
+        self.configure(relief="groove", bd=1, cursor="hand2", bg=App.colors["match_list_base_bg"])
+        self.base_tk = self._get_base_tk()
+        self.selected = False
 
         self.img_1_path = match[0]
         self.img_2_path = match[1]
         self.score = match[2]
+        self.id = match_id
 
         self.img_names_frame = tk.Frame(self)
         self.img_names_frame.pack(side="left")
 
-        self.img_1_label = tk.Label(self.img_names_frame, text=os.path.basename(self.img_1_path), width=18, anchor="w")
+        self.img_1_label = tk.Label(self.img_names_frame, text=os.path.basename(self.img_1_path), width=18, anchor="w",
+                                    bg=App.colors["match_list_base_bg"])
         self.img_1_label.grid(row=0, column=0, sticky="w")
 
-        self.img_2_label = tk.Label(self.img_names_frame, text=os.path.basename(self.img_2_path), width=18, anchor="w")
+        self.img_2_label = tk.Label(self.img_names_frame, text=os.path.basename(self.img_2_path), width=18, anchor="w",
+                                    bg=App.colors["match_list_base_bg"])
         self.img_2_label.grid(row=1, column=0, sticky="w")
 
         self.score_label = tk.Label(self, text=str(int(self.score*100)) + "%", fg=App.colors["comparison_score"],
-                                    font=Font(size=11, weight="bold"), anchor="e")
+                                    font=Font(size=11, weight="bold"), anchor="e", bg=App.colors["match_list_base_bg"])
         self.score_label.pack(side="right")
+
+        self.bg_widgets = (self, self.img_1_label, self.img_2_label, self.score_label)
+
+        self.bind("<Enter>", self._on_enter)
+        self.bind("<Leave>", self._on_leave)
+        for widget in self.bg_widgets:
+            widget.bind("<Button-1>", self._on_click)
+
+    def _on_enter(self, e):
+        if not self.selected:
+            for widget in self.bg_widgets:
+                widget.configure(bg=App.colors["match_list_hover_bg"])
+
+    def _on_leave(self, e):
+        if not self.selected:
+            for widget in self.bg_widgets:
+                widget.configure(bg=App.colors["match_list_base_bg"])
+
+    def _on_click(self, e):
+        self.selected = True
+        for widget in self.bg_widgets:
+            widget.configure(bg=App.colors["match_list_active_bg"])
+
+        self.score_label.configure(fg=App.colors["match_list_hover_bg"])
+
+        self.base_tk.on_select_match(match_id=self.id)
+
+    def on_deselect(self):
+        self.selected = False
+        for widget in self.bg_widgets:
+            widget.configure(bg=App.colors["match_list_base_bg"])
+
+        self.score_label.configure(fg=App.colors["comparison_score"])
+
+    def _get_base_tk(self):
+        master = self.master
+        while not isinstance(master, tk.Tk):
+            master = master.master
+        return master
+
+
+class ImageDetailFrame(tk.Frame):
+    def __init__(self, img_path, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.img_path = img_path
+        self.pil_img = Image.open(img_path).resize((300, 300))
+        self.img_dims = self.pil_img.size
+        self.img_size = os.path.getsize(img_path)
+
+        self.tk_img = ImageTk.PhotoImage(self.pil_img)
+
+        self.image_display = tk.Label(self, image=self.tk_img)
+        self.image_display.pack()
+
+
 
 
 class ScrollableFrame(tk.Frame):

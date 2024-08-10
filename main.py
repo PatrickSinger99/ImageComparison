@@ -62,6 +62,7 @@ class ImageCompare:
         """
 
         timer_start = time.time()
+        num_comparisons = 0
 
         # Load new image and compute features
         new_img_data = load_img(new_image_path)
@@ -75,6 +76,7 @@ class ImageCompare:
         for img_path, img_features in all_imgs_features.items():
             if new_image_path != img_path:
                 similarity = compare_two_images(img_features, new_img_features)
+                num_comparisons += 1
 
                 # Only save comparison result if above the defined threshold
                 if similarity >= threshold:
@@ -82,7 +84,7 @@ class ImageCompare:
 
         # Sort results
         results = sorted(results, key=lambda x: x[1], reverse=True)
-
+        self.save_file_handler.add_to_lifetime_stats(matches=len(results), comparisons=num_comparisons)
         final_time = time.time()-timer_start
         print(f"(i) Comparison with {os.path.basename(new_image_path)} finished. "
               f"Found {len(results)} match{'es' if len(results) != 1 else ''} above threshold {threshold} "
@@ -149,7 +151,10 @@ class ImageCompare:
 
         final_time = time.time() - timer_start
         num_of_imgs = len(compared_imgs_features) + len(uncompared_imgs_features)
+
         if num_comparisons != 0:
+            self.save_file_handler.add_to_lifetime_stats(matches=len(results), comparisons=num_comparisons)
+
             print(f"(i) Comparison of {num_of_imgs} image{'s' if num_of_imgs != 1 else ''} finished. "
                   f"{num_comparisons} total comparison{'s' if num_comparisons != 1 else ''}. "
                   f"Found {len(results)} match{'es' if len(results) != 1 else ''} above threshold {threshold} "
